@@ -1,0 +1,40 @@
+# ===============================
+# Manual Azure DevOps Pipeline for ClouderAPIs
+# Deploys to Azure App Service: cst-api-test-eu1
+# Controlled: Manual only, not auto-triggered
+# ===============================
+
+trigger: none     # <-- NO automatic trigger on commit or PR
+
+pool:
+  vmImage: 'windows-latest'
+
+variables:
+  REPO_URL: 'https://gitlab.com/bereej/clouderapis.git'
+  PROJECT_PATH: 'ClouderApis/ClouderApis.csproj'  # change if your csproj is elsewhere
+  AZURE_APP_NAME: 'cst-api-test-eu1'
+  AZURE_CONNECTION: 'AzureConnection'
+
+steps:
+# --- Step 1: Clone GitLab Repo ---
+- script: |
+    echo "Cloning GitLab repo..."
+    git clone https://$(GITLAB_USERNAME):$(GITLAB_TOKEN)@gitlab.com/bereej/clouderapis.git
+  displayName: 'Clone from GitLab'
+
+# --- Step 2: Build & Publish .NET App ---
+- task: DotNetCoreCLI@2
+  inputs:
+    command: 'publish'
+    publishWebProjects: true
+    arguments: '--configuration Release --output $(Build.ArtifactStagingDirectory)'
+  displayName: 'Build and Publish Project'
+
+# --- Step 3: Deploy to Azure App Service ---
+- task: AzureWebApp@1
+  inputs:
+    azureSubscription: '$(AZURE_CONNECTION)'
+    appType: 'webApp'
+    appName: '$(AZURE_APP_NAME)'
+    package: '$(Build.ArtifactStagingDirectory)/**/*.zip'
+  displayName: 'Deploy to Azure App Service'
